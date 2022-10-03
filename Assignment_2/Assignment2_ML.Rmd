@@ -1,0 +1,268 @@
+---
+title: "Assignment2"
+author: "Zachariah Alex"
+date: "2022-10-03"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#loading library functions
+
+library(class)
+
+library(caret)
+
+#library(dplyr)
+
+```
+
+```{r}
+
+#reading dataset
+
+data1<-read.csv('UniversalBank.csv',header=TRUE)
+
+head(data1)
+
+#converting PersonalLoan coloumn to factor variable
+
+data1$Personal.Loan <- as.factor(data1$Personal.Loan)
+
+
+#removing unwanted data
+
+data2<-data1[,-c(1,5)]
+
+head(data2)
+
+#creating a dataframe
+
+df<-data.frame(data2)
+
+#checking variables with no values
+
+no_values<-is.na(df)
+head(no_values)
+
+data3<-data.frame(df)
+
+```
+
+
+```{r}
+#Creating dummy variables for education
+
+Education_1 <- ifelse(data3$Education==1 ,1,0)
+
+Education_2 <- ifelse(data3$Education==2 ,1,0)
+
+Education_3 <- ifelse(data3$Education==3 ,1,0)
+
+```
+
+
+
+```{r}
+
+#inserting dummy variables into dataframe
+
+data4<-data.frame(Age=data3$Age,Experience=data3$Experience,Income=data3$Income,Family=data3$Family,CCAvg=data3$CCAvg, Education_1=Education_1,Education_2=Education_2,Education_3=Education_3,Personal.Loan=data3$Personal.Loan,Mortgage=data3$Mortgage,Securities.Account=data3$Securities.Account,CD.Account=data3$CD.Account,Online=data3$Online,CreditCard=data3$CreditCard)
+
+```
+
+
+```{r}
+#splitting data to 60:40 ratio
+
+set.seed(123)
+library(caret)
+sample <- createDataPartition(data4$Personal.Loan,p=.6,list=FALSE,times=1)
+train  <- data4[sample, ]
+head(data4)
+valid   <- data4[-sample, ]
+
+```
+
+
+
+
+```{r}
+
+#normalizing train and validation data
+
+stdata <- preProcess(train[,-(6:9)], method=c("center","scale"))
+
+train_norm_data <- predict(stdata,train)
+
+valid_norm_data <- predict(stdata,valid)
+
+head(valid_norm_data)
+
+
+```
+
+
+
+```{r}
+
+#1#defining test data
+
+Test_data<-data.frame(Age=40,Experience=10,Income=84,Family=2,CCAvg=2,Education_1=0,Education_2=1,Education_3=0,Mortgage=0,Securities.Account=0,CD.Account=0,Online=1,CreditCard=1)
+
+View(Test_data)
+test_norm_data <- predict(stdata,Test_data)
+
+```
+
+```{r}
+
+#2#knn function
+
+library(class)
+
+train_predictor<-train_norm_data[,-9]
+
+train_label<-train_norm_data[,9]
+
+
+valid_predictor<-valid_norm_data[,-9]
+
+
+valid_label<-valid_norm_data[,9]
+
+
+ModelPrediction<-knn(train_predictor,test_norm_data,cl=train_label,k=1)
+
+ModelPrediction
+
+#Since k=0 ,the customer will be classified under category of people who does not accept the loan(loan offer denial).
+
+```
+
+```{r}
+#3#Finding best value of k
+
+set.seed(356)
+
+searchGrid <- expand.grid(k=seq(1:30))
+
+model <- train(Personal.Loan~Age+Experience+Income+Family+CCAvg+Mortgage+Securities.Account+CD.Account+Online+CreditCard+Education_1+Education_2+Education_3,data=train_norm_data,method="knn",tuneGrid=searchGrid)
+
+model
+
+best_k <- model$bestTune[[1]] 
+#this saves the best value for k
+
+#plotting the model
+
+plot(model)
+
+```
+
+```{r}
+#3#confusion matrix
+
+library(caret)
+
+Prediction.model <- predict(model,valid_norm_data[,-9])
+
+
+confusionMatrix(Prediction.model,valid_label)
+
+```
+
+```{r}
+
+#4#running knn with best k for new customer
+
+ModelPrediction1<-knn(train_predictor,test_norm_data,cl=train_label,k=best_k)
+
+ModelPrediction1
+
+#Since k=0 ,the new customer will be classified under category of people who does not accept the loan(loan offer denial).
+
+```
+
+```{r}
+
+#5#splitting data to 50:30:20 ratio
+
+set.seed(234)
+
+library(caret)
+
+sample1<- createDataPartition(data4$Personal.Loan,p=.5,list=FALSE,times=1)
+
+sample2<- createDataPartition(data4$Personal.Loan,p=.3,list=FALSE,times=1)
+
+sample3<- createDataPartition(data4$Personal.Loan,p=.2,list=FALSE,times=1)
+
+train1  <- data4[sample1, ]
+
+valid1  <- data4[sample2, ]
+
+test1  <- data4[sample3, ]
+
+#normalizing the data
+
+T1 <- preProcess(train[,-(6:9)], method=c("center","scale"))
+
+#train data
+
+train_norm_data1 <- predict(T1,train1)
+
+#validation data
+
+valid_norm_data1<-predict(T1,valid1)
+
+#test data
+
+test_norm_data1<-predict(T1,test1)
+
+#running knn for train,validation and test data
+
+train_predictor1=train_norm_data1[,-9]
+
+train_label1=train_norm_data1[,9]
+
+valid_predictor1=valid_norm_data1[,-9]
+
+valid_label1=valid_norm_data1[,9]
+
+test_predictor1=test_norm_data1[,-9]
+
+test_label1=test_norm_data1[,9]
+
+Predict_train<-knn(train_predictor1,train_predictor1,cl=train_label1,k=best_k)
+
+Predict_valid<-knn(train_predictor1,valid_predictor1,cl=train_label1,k=best_k)
+
+Predict_test<-knn(train_predictor1,test_predictor1,cl=train_label1,k=best_k)
+
+#confusion matrix of training data
+
+confusionMatrix(Predict_train,train_label1)
+
+
+#confusion matrix of validation data
+
+confusionMatrix(Predict_valid,valid_label1)
+
+
+#confusion matrix of test data
+
+
+confusionMatrix(Predict_test,test_label1)
+
+#As the accuracy is higher on TEST data, we can conclude that the model works the best on unseen data i.e Test data.
+
+```
+
+
+
+
+
