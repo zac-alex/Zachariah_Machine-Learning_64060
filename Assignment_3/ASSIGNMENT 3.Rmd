@@ -1,0 +1,197 @@
+---
+title: "Assignment 3"
+author: "Zachariah Alex"
+date: "2022-10-17"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+#LOADING LIBRARY FUNCTIONS
+
+library(caret)
+library(class)
+library(e1071)
+library(dplyr)
+
+```
+
+```{r}
+#READING CSV FILE
+
+data1<-read.csv("UniversalBank.csv",header=TRUE)
+head(data1)
+
+#CONVERTING TO FACTORS 
+
+data1$Personal.Loan <- as.factor(data1$Personal.Loan)
+data1$Online <- as.factor(data1$Online)
+data1$CreditCard <- as.factor(data1$CreditCard)
+
+is.factor(data1$Personal.Loan)
+is.factor(data1$Online)
+is.factor(data1$CreditCard)
+
+```
+
+
+```{r}
+#PARTITIONING DATA TO 60:40 RATIO
+
+set.seed(350)
+data_partition<-createDataPartition(data1$Personal.Loan,p=.6,list=FALSE,times=1)
+
+train<-data1[data_partition,]
+valid<-data1[-data_partition,]
+
+
+```
+
+```{r}
+
+#NORMALIZING THE DATA
+
+norm <- preProcess(train[,-c(10,13,14)], method=c("center","scale"))
+
+train_norm <-predict(norm,train)
+
+valid_norm<- predict(norm,valid)
+
+head(valid_norm)
+head(train_norm)
+
+```
+
+
+\textcolor{red}{A: Creating a pivot table for the training data with Online as a column variable,}
+\textcolor{red}{CC as a row variable, and Loan as a secondary row variable}
+
+```{r}
+
+table_loan<-table(train_norm$CreditCard,train_norm$Personal.Loan,train_norm$Online)
+View(table_loan)
+```
+\textcolor{red}{B: The probability of loan acceptance conditional on 
+having a bank credit card}
+\textcolor{red}{and being an active user of online banking services:}
+
+$$(Loan=1,CC = 1,Online=1)=(53 /(468+53))=0.1017
+$$
+
+
+\textcolor{red}{C:Creating separate pivot tables for the training data with Loan (rows) as a 
+function of Online (columns)}
+
+```{r}
+table_1<-table(train_norm$Personal.Loan,train_norm$Online)
+View(table_1)
+```
+
+
+
+\textcolor{red}{C: Creating separate pivot tables for the training data with Loan (rows) as a function of CC.}
+
+
+```{r}
+
+table_2<-table(train_norm$Personal.Loan,train_norm$CreditCard)
+View(table_2)
+```
+
+\textcolor{red}{Creating Personal Loan table}
+
+```{r}
+table_3<-table(train_norm$Personal.Loan)
+proptable_3<-prop.table(table_3)
+View(proptable_3)
+```
+
+
+\textcolor{red}{D:Computing the following probabilities from the table}
+
+
+
+$${i. P(CC = 1 | Loan = 1)  =84/288=0.2916}$$
+
+$${ii. P(Online = 1 | Loan = 1)= 180/288=0.625}$$
+
+
+
+$${iii. P(Loan = 1)  =288/3000=0.096}$$
+
+
+
+$${iv. P(CC = 1 | Loan = 0)  =804/(1908+804)=804/2712=0.2964}$$
+
+
+
+
+$${v. P(Online = 1 | Loan = 0) =1593/(1593+1119)=1593/2712=0.5873}$$
+
+
+
+$${vi. P(Loan = 0) =2712/3000=0.904}$$
+
+
+
+\textcolor{red}{E: Using the quantities computed above and computing the naive Bayes probability }
+
+\textcolor{red}{P(Loan = 1 | CC= 1, Online = 1)}
+
+$$P(Loan=1|CC=1,Online=1) = $$
+$$P(CC=1|Loan=1 )* P(Online=1|Loan=1).P(Loan=1))$$
+$$\text{----------------------------------------------------------------------------------------------------------- }$$
+$${P(CC=1|Loan=1) * P(Online=1|Loan=1).P(Loan=1))+P(CC=1|Loan=0) * }$$
+$${P(Online=1|Loan=0) *P(Loan=0) ) }$$
+
+
+$$( 0.2916*0.625*0.096)/((0.2916*0.625*0.096)+(0.2964*0.5873*0.904))= 0.01014$$
+
+
+$$P(Loan=1|CC=1,Online=1) =0.01014 $$
+
+
+\textcolor{red}{F: Comparing this value with the one obtained from the pivot table in B}
+$$\text{From pivot table (B)}$$
+
+$${(Loan=1,CC = 1,Online=1)=(53 /(468+53))=0.1017}$$
+
+
+$$\text{From computing the naive Bayes probability}$$
+
+$$P(Loan=1|CC=1,Online=1) =0.01014 $$
+$$\text{We can say that the probability from the pivot table is more accurate as we are directly}$$
+$$\text{taking values from the frequency table while  naive bayes probability calculation}$$
+$$\text{is based upon assumptions.}$$
+
+\textcolor{red}{G: Running Naive bayes theorem-Using the quantities computed above to compute the naive Bayes probability }
+
+$$P(Loan = 1 | CC = 1, Online = 1)$$
+```{r}
+
+model<-naiveBayes(Personal.Loan~CreditCard+Online,data=train_norm)
+
+model
+
+
+``` 
+
+$$\text{naiveBayes Probability =0.096 ,which is more accurate than step E.}$$
+$$\text{In step E there is a possibility of manual calculation errors and roundoff errors and assumptions.}
+$$
+
+
+
+
+
+
+
+
+
+
