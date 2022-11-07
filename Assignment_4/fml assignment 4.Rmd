@@ -1,0 +1,209 @@
+---
+title: "ASSIGNMENT 4"
+author: "Zachariah Alex"
+date: "2022-11-04"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+```
+
+```{r}
+
+#Loading library functions
+
+library(factoextra)
+library(dplyr)
+library(ggcorrplot)
+```
+
+```{r}
+#Reading the csv file
+
+data1<-read.csv('Pharmaceuticals.csv')
+
+```
+
+```{r}
+#normalizing the data
+
+data2<-data1[,(3:11)]
+data3<-scale(data2)
+
+```
+
+```{r}
+#running Elbow method for finding optimal value for k
+
+set.seed(356)
+fviz_nbclust(data3,kmeans,method="wss")
+```
+
+*From the plot it is clear that k =2*
+
+```{r}
+
+#running Silhouette method to find optimal value for k
+
+set.seed(423)
+fviz_nbclust(data3,kmeans,method="silhouette")
+
+
+```
+
+*From the plot it is clear that k =5*
+
+```{r}
+
+#Running kmean on k = 2 from elbow method
+
+k2<-kmeans(data3,centers=2)
+
+k2
+
+#binding data to dataset
+
+data4<-cbind(data3,k2$cluster)
+
+```
+
+```{r}
+#Running kmean on k=5 from silhouette method
+
+k5<-kmeans(data3,centers=5)
+
+k5
+
+#binding data to dataset
+data5<-cbind(data3,k5$cluster)
+
+
+```
+
+
+***(A)INTERPRETATION***
+
+*Here we are using k-mean algorithm with elbow and silhouette method for cluster analysis*
+
+*We can see that by using elbow method optimal number of clusters obtained are 2*
+```{r}
+#plotting cluster based on elbow method
+
+fviz_cluster(k2,data2,main="2 clusters")
+```
+
+*In silhouette method the optimum number of cluster obtained is 5*
+```{r}
+#plotting cluster based on silhouette method
+
+fviz_cluster(k5,data2,main="5 clusters")
+```
+
+***(B)Analysing clusters***
+
+```{r}
+#Finding mean of each coumn within each clusters in elbow method
+
+data2 %>% mutate(Cluster = k2$cluster) %>% group_by(Cluster) %>% summarise_all("mean")
+```
+
+*From the results we can see that cluster one stocks is good to invest than cluster two*
+
+*Market cap is higher for cluster one and beta value which indicates the volatility is lower for cluster one*
+
+*Optimal range of PE is twenty to twenty five range and cluster one has Price to earning ratio of twenty one*
+
+*Moreover ROE,ROA,Asset turnover and most important net profit margin is higher for cluster one stocks.*
+
+```{r}
+#Finding mean of each coloumns in each clusters in silhouette method
+
+data2 %>% mutate(Cluster = k5$cluster) %>% group_by(Cluster) %>% summarise_all("mean")
+```
+
+*From the results,we can see that cluster five stocks is good to invest than rest four clusters*
+
+*Market cap is highest and lower beta value(low risk) for cluster 5*
+
+*Optimal range of PE is twenty to twenty five range and cluster one has Price to earning ratio of twenty two*
+
+*Moreover ROE,ROA,Asset turnover and most important net profit margin is highest for cluster five stocks.*
+
+
+***(C) Pattern in the clusters with respect to the variables (10 to 12)***
+
+```{r}
+
+#BASED ON EXCHANGE 
+
+plot <-data1[12:14] %>% mutate(Clusters=k2$cluster)
+ggplot(plot, mapping = aes(factor(Clusters), fill =Exchange))+geom_bar(position='dodge')+labs(x ='Clusters')
+
+
+
+plot <-data1[12:14] %>% mutate(Clusters=k5$cluster)
+ggplot(plot, mapping = aes(factor(Clusters), fill =Exchange))+geom_bar(position='dodge')+labs(x ='Clusters')
+
+
+```
+
+*FROM PLOTTING,WE CAN SEE THAT IN BOTH ELBOW METHOD AND SILHOUETTE METHOD IN ALL THE CLUSTERS FORMED MOST OF THE COMPANIES ARE LISTED IN NEWYORK STOCK EXCHANGE*
+
+```{r}
+#BASED ON RECOMMENDATION
+
+plot <-data1[12:14] %>% mutate(Clusters=k2$cluster)
+ggplot(plot, mapping = aes(factor(Clusters), fill =Median_Recommendation))+geom_bar(position='dodge')+labs(x ='Clusters')
+
+
+
+plot <-data1[12:14] %>% mutate(Clusters=k5$cluster)
+ggplot(plot, mapping = aes(factor(Clusters), fill =Median_Recommendation))+geom_bar(position='dodge')+labs(x ='Clusters')
+
+```
+
+
+*FROM PLOTTING WE CAN SEE THAT IN BOTH ELBOW METHOD AND SILHOUETTE METHOD IN ALL THE CLUSTERS FORMED WE CAN SEE THAT THERE IS A LEAST NUMBER OF RECOMMENDATIONS FOR STRONG BUY*
+  
+
+```{r}
+
+#BASED ON LOCATION 
+
+plot <-data1[12:14] %>% mutate(Clusters=k2$cluster)
+ggplot(plot, mapping = aes(factor(Clusters), fill =Location))+geom_bar(position='dodge')+labs(x ='Clusters')
+
+
+
+plot <-data1[12:14] %>% mutate(Clusters=k5$cluster)
+ggplot(plot, mapping = aes(factor(Clusters), fill =Location))+geom_bar(position='dodge')+labs(x ='Clusters')
+
+
+```
+
+*FROM PLOTTING WE CAN SEE THAT IN BOTH ELBOW METHOD AND SILHOUETTE METHOD IN ALL THE CLUSTERS FORMED MOST OF THE COMPANIES ARE BASED IN USA*
+
+
+***(D) CLUSTER NAMINGS***
+
+*FROM ELBOW METHOD*
+ 
+*CLUSTER 1 -MODEST BULL BASKET (based on all variables-medium buy stocks)*
+
+*CLUSTER 2 -CREEPING BULL BASKET (based on all variables)*
+
+*FROM SILHOUETTE METHOD*
+
+*CLUSTER 1 -BUDDING BULL BASKET (based on revenue growth)*
+
+*CLUSTER 2 -PENNY BEAR BASKET (based on all variables)*
+
+*CLUSTER 3 -HARMONY BULL BASKET (based on all variables-consistent)*
+
+*CLUSTER 4 -SPECULATIVE BULL BASKET (based on PE ratio)*
+
+*CLUSTER 5 -GOLDEN BULL BASKET (based on all variables)*
