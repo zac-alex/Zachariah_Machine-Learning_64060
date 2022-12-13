@@ -1,0 +1,332 @@
+---
+title: "FML FINAL PROJECT"
+author: "Zachariah Alex"
+date: "2022-11-21"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(Warning = FALSE)
+```
+
+```{r}
+#loading library functions
+
+library(dplyr)
+library(caret)
+library(factoextra)
+library(cluster)
+library(esquisse)
+
+```
+
+```{r}
+#reading data file
+
+data1<-read.csv("fuel.csv")
+
+```
+
+```{r}
+#replacing missing/blank data with NA
+
+data2<-data1%>% replace(.=="", NA)
+
+```
+
+```{r}
+#finding average null values of missing data in each column
+
+Null_values<-data2%>%is.na()%>%colMeans()*100
+```
+
+```{r}
+#removing columns having more than 50% null values and filtering required columns
+
+data4<- subset(data2,select=c(rowid,plant_id_eia,fuel_received_units,fuel_mmbtu_per_unit,sulfur_content_pct,ash_content_pct,mercury_content_ppm,fuel_cost_per_mmbtu,contract_type_code,energy_source_code,fuel_type_code_pudl,fuel_group_code,supplier_name,primary_transportation_mode_code,plant_id_eia_label, natural_gas_transport_code,contract_type_code))
+
+
+```
+
+```{r}
+
+#Sampling 2% of the data
+
+set.seed(8250)
+
+data5<-sample_n(data4,12000)
+
+```
+
+```{r}
+
+#splitting data to 75:25 test train ratio
+
+set.seed(8578)
+
+sample<-createDataPartition(data5$rowid,p=0.75, list=FALSE)
+
+train<-data5[sample,]
+
+test<-data5[-sample,]
+
+```
+
+```{r}
+#combining required categorical and numerical variables
+
+qdata<-train[,c(2,3,4,5,6,7,8,11)]
+
+#replacing NA values with 0 for calculations
+
+cdata<-qdata%>% replace(.=="", NA)
+
+cdata[is.na(qdata)] <- 0
+
+```
+
+```{r}
+#Assigning dummy variables to categorical variable fuel_type_code_pudl
+
+fuel_coal <- ifelse(cdata$fuel_type_code_pudl=="coal" ,1,0)
+fuel_gas <- ifelse(cdata$fuel_type_code_pudl=="gas" ,1,0)
+fuel_oil <- ifelse(cdata$fuel_type_code_pudl=="oil" ,1,0)
+
+data6<-cbind(cdata[,-c(8)],fuel_coal,fuel_gas,fuel_oil)
+
+
+```
+
+
+```{r}
+#normalizing the data
+
+data8<-scale(data6)
+
+
+```
+
+*Applying hierarchical clustering algorithm*
+```{r}
+# Creating the dissimilarity matrix for data set through Euclidean distance.
+
+distance <- dist(data8, method = "euclidean")
+```
+
+```{r}
+# Hierarchical clustering using Ward's method
+
+clusterfuel <- hclust(distance, method = "ward.D2" )
+```
+*Wards distance is used because Ward's minimum variance criterion minimizes the total within-cluster variance*
+
+```{r}
+# Plotting the dendrogram
+
+plot(clusterfuel, cex = 0.6, hang = -1)
+rect.hclust(clusterfuel,k=3,border=2:5)
+```
+*Cut-off height = 135.Therefore number of clusters =3 *
+
+*Here we are choosing k value =3 (domain knowledge) so as to find the distribution of 3 types of fuel in each of the clusters*
+
+
+```{r}
+#cutting the dendrogram tree for k=3
+
+grp <- cutree(clusterfuel, k = 3)
+
+```
+
+```{r}
+# Finding number of members in each of the clusters
+
+table(grp)
+
+```
+
+*Based on the number of clusters considered, 3 groups have been formed with 4891,3338,771 data points*
+
+```{r}
+#Binding clusters to main data 
+
+data7<- cbind(data6, clustering = grp)
+
+```
+
+```{r}
+
+#Cluster visualization 
+
+fviz_cluster(list(data = data7, cluster = grp))
+
+
+```
+
+*The three clusters are named as  Coal, Gas and Oil*
+
+*Cluster 1= GAS*
+
+*Cluster 2= COAL*
+
+*Cluster 3= OIL*
+
+```{r}
+
+#Finding mean of required columns for interpretation
+
+comb_data<-cbind(data7,train[,c(9,11,12,14,15,16)])
+
+fuel<-comb_data %>% mutate(clusters=comb_data$clustering) %>% group_by(clusters)
+
+data9<-fuel[,c(2:11)]%>%group_by(clustering)%>%summarise_all("mean")
+
+```
+
+*Plotting clusters vs other variables*
+```{r}
+
+#Cluster vs fuel type 
+
+ggplot(fuel, aes(x=fuel$clusters,fill=fuel$fuel_type_code_pudl))+geom_bar()
+```
+
+\newpage
+```{r}
+
+#cluster vs heat content
+
+ggplot(data9, aes(x=clustering, y=fuel_mmbtu_per_unit,fill=clustering)) + geom_bar(stat="identity") + 
+labs(x="clusters", y="fuel heat content")+scale_fill_gradient(low = "#FF0000", high = "#000000") + theme_minimal()
+```
+\newpage
+```{r}
+
+#cluster vs fuel received
+
+ggplot(data9, aes(x=clustering, y=fuel_received_units,fill=clustering)) + geom_bar(stat="identity") + 
+labs(x="clusters", y="fuel recieved")+scale_fill_viridis_c(option = "viridis", direction = 1) +
+theme_minimal()
+```
+\newpage
+```{r}
+
+#cluster vs fuel cost
+
+ggplot(data9, aes(x=clustering, y=fuel_cost_per_mmbtu,fill=clustering)) + geom_bar(stat="identity") + 
+labs(x="clusters", y="fuel_cost")
+```
+\newpage
+```{r}
+
+# cluster vs sulfur content
+
+ggplot(data9, aes(x=clustering, y=sulfur_content_pct,fill=clustering)) + geom_bar(stat="identity") + 
+labs(x="clusters", y="sulfur content")+scale_fill_gradient(low = "#FF0000", high = "#000000") + theme_minimal()
+```
+\newpage
+```{r}
+#cluster vs ash content
+
+ggplot(data9, aes(x=clustering, y=ash_content_pct,fill=clustering)) + geom_bar(stat="identity") + 
+labs(x="clusters", y="ash content")
+```
+\newpage
+```{r}
+#cluster vs mercury content
+
+ggplot(data9, aes(x=clustering, y=mercury_content_ppm,fill=clustering)) + geom_bar(stat="identity") + 
+labs(x="clusters", y="mercury content")+scale_fill_viridis_c(option = "viridis", direction = 1) +
+theme_minimal()
+```
+\newpage
+```{r}
+#cluster vs contract type
+
+ggplot(fuel, aes(x=fuel$clusters,fill=fuel$contract_type_code))+geom_bar(position=position_dodge())+facet_wrap(~contract_type_code)
+```
+\newpage
+```{r}
+#cluster vs transportation mode
+
+ggplot(fuel, aes(x=fuel$clusters,fill=fuel$primary_transportation_mode_code))+geom_bar(position=position_dodge())+facet_wrap(~primary_transportation_mode_code) 
+
+```
+\newpage
+
+***ANALYSIS OF CLUSTERS***
+
+
+
+**CLUSTER ONE: GAS**
+
+*Cluster 1 data accounts to little above half or 55.36% of our sample data.*
+
+*Gas is the main fuel type used in this cluster.*
+
+*Average units of gas received is 405035 units which is the highest compared to coal and oil.*
+
+*Gas is free from components like mercury, sulphur and ash.*
+
+*Cost for the gas fuel is 13.04 USD per MMBtu.*
+
+*Pipeline is the transportation method used for this type of fuel.*
+
+
+
+
+**CLUSTER TWO:COAL**
+
+*Cluster two is formed by 3215 observations which totals up to 35.72% of our sampled data.*
+
+*Fuel type used in this cluster is coal.*
+
+*Average units of coal received is 46216 units*
+
+*Average heat content of the fuel is 21.32 which is higher than other two fuels.*
+
+*Coal fuel has an average mercury content of 0.011%,sulfur content of 1.38% and ash content of 9.93%.*
+
+*Coal energy is cheaper when compared with gas and oil and  average fuel cost per MMBtu is 1.70 USD.*
+
+
+
+
+**CLUSTER THREE :OIL**
+
+*Cluster 3 is formed by 802 observations which totals to only 8.9% of our sample data.*
+
+*Oil or Petroleum is the fuel type used*
+
+*Total quantity of fuel received is 6083 units.*
+
+*Fuel heat content is 5.83 units which is greater than gas.*
+
+*This type of fuel is free from mercury and ash content ,but contains  a little of 0.19% of sulphur .*
+
+*Fuel cost per MMBtu is 9.99 USD.*
+
+
+
+
+**Extra Credit**
+
+```{r}
+
+#building the model
+
+model<-lm(data6$fuel_cost_per_mmbtu~.,data=data6)
+
+summary(model)
+
+#Finding variable importance 
+
+varImp(model)
+
+```
+*Here we can see that our p value is greater than 5 % and r squared value is too low.*
+*This means variables we considered doesnot account to the variability for fuel cost per mmbtu variable*
+
+
